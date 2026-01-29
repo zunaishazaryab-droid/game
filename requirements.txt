@@ -1,0 +1,5 @@
+# Forget to Win - Dependencies
+# Python 3.8+
+
+# UI/Terminal Library
+rich>=13.0.0
