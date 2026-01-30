@@ -3,3 +3,4 @@
 
 # UI/Terminal Library
 rich>=13.0.0
+prompt_toolkit>=3.0.0

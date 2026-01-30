@@ -869,7 +869,7 @@ IDLE → MEMORIZING → RECALLING → SCORING → DISPLAYING_RESULTS → IDLE
 ### **FR-5: Recall Phase**
 **Priority**: P0 (Critical)
 
-**Description**: Prompt user to recall good items without symbols
+**Description**: Prompt user to recall good items without symbols with dynamic typing timer
 
 **Acceptance Criteria**:
 - ✅ Display all items WITHOUT ✅/❌ symbols
@@ -880,12 +880,23 @@ IDLE → MEMORIZING → RECALLING → SCORING → DISPLAYING_RESULTS → IDLE
 - ✅ Validate input (numbers only, within range)
 - ✅ Display error for invalid input
 - ✅ Allow retry on error (no penalty)
+- ✅ **Dynamic Typing Timer**: Time limit increases with level difficulty
+  - Level 1 (5 items): 20 seconds
+  - Level 2 (7 items): 30 seconds
+  - Level 3 (9 items): 40 seconds
+  - Level 4 (11 items): 50 seconds
+  - Level 5 (13 items): 60 seconds
+- ✅ **Live Countdown**: Display real-time countdown during input
+- ✅ **Auto-Submit**: Automatically evaluate partial input if timer expires
+- ✅ **Visual Timer**: Use Rich progress bar or live display for professional look
 
 **Technical Notes**:
 - `ForgetToWinGame.recall_phase()` method
-- `Rich.Prompt.ask()` for input
+- `Rich.Prompt.ask()` for input with timeout
 - Input parsing: `[int(x.strip()) - 1 for x in answer.split(',')]`
 - Validation: check range, type, format
+- Threading for parallel timer and input handling
+- `Rich.Live` or `Rich.Progress` for countdown display
 
 ---
 

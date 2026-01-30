@@ -1,0 +1,474 @@
+{% extends 'game/base.html' %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+
+    <!-- Game Container -->
+    <div id="gameContainer"
+        class="bg-cyber-darker/80 backdrop-blur-sm rounded-2xl p-8 border-2 border-purple-500/50 glow-purple">
+
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="text-center">
+            <div class="mb-8">
+                <div
+                    class="inline-block p-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full glow-purple mb-6">
+                    <svg class="w-24 h-24 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                        </path>
+                    </svg>
+                </div>
+                <h2 class="text-4xl font-bold mb-4 neon-text text-purple-400">Welcome to Forget to Win!</h2>
+                <p class="text-xl text-gray-300 mb-6">A game that challenges your selective memory</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-purple-500/10 border border-purple-500/30 rounded-xl p-6">
+                    <div class="text-3xl mb-2">✅</div>
+                    <h3 class="text-xl font-bold text-purple-400 mb-2">Remember Good</h3>
+                    <p class="text-gray-400">Focus on items marked with ✅</p>
+                </div>
+                <div class="bg-pink-500/10 border border-pink-500/30 rounded-xl p-6">
+                    <div class="text-3xl mb-2">❌</div>
+                    <h3 class="text-xl font-bold text-pink-400 mb-2">Forget Bad</h3>
+                    <p class="text-gray-400">Ignore items marked with ❌</p>
+                </div>
+                <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-6">
+                    <div class="text-3xl mb-2">🏆</div>
+                    <h3 class="text-xl font-bold text-cyan-400 mb-2">Score High</h3>
+                    <p class="text-gray-400">Perfect levels for streak bonuses!</p>
+                </div>
+            </div>
+
+            <button onclick="startGame()"
+                class="px-12 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xl rounded-xl shadow-lg glow-purple transition-all transform hover:scale-105">
+                START GAME
+            </button>
+        </div>
+
+        <!-- Level Info -->
+        <div id="levelInfo" class="hidden mb-6">
+            <div class="flex justify-between items-center bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+                <div>
+                    <span class="text-gray-400">Level:</span>
+                    <span id="currentLevel" class="text-2xl font-bold text-purple-400 ml-2">1</span>
+                    <span class="text-gray-400">/5</span>
+                </div>
+                <div>
+                    <span class="text-gray-400">Score:</span>
+                    <span id="totalScore" class="text-2xl font-bold text-cyan-400 ml-2">0</span>
+                </div>
+                <div>
+                    <span class="text-gray-400">Streak:</span>
+                    <span id="streakCount" class="text-2xl font-bold text-pink-400 ml-2">0</span>
+                    <span class="text-xl ml-1">🔥</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timer Display -->
+        <div id="timerDisplay" class="hidden mb-6">
+            <div
+                class="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-2 border-purple-500/50 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span id="timerLabel" class="text-lg font-semibold text-gray-300">Time Remaining</span>
+                    <span id="timerValue" class="text-3xl font-bold neon-text text-purple-400">0s</span>
+                </div>
+                <div class="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
+                    <div id="timerBar"
+                        class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-1000 glow-purple"
+                        style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memorization Phase -->
+        <div id="memorizationPhase" class="hidden">
+            <h3 class="text-2xl font-bold text-center mb-6 text-purple-400">
+                <span class="neon-text">MEMORIZATION PHASE</span>
+            </h3>
+            <p class="text-center text-gray-300 mb-6 text-lg">
+                Remember the <span class="text-green-400 font-bold">✅ GOOD</span> items.
+                Forget the <span class="text-red-400 font-bold">❌ BAD</span> items!
+            </p>
+            <div id="itemsGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <!-- Items will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Recall Phase -->
+        <div id="recallPhase" class="hidden">
+            <h3 class="text-2xl font-bold text-center mb-6 text-cyan-400">
+                <span class="neon-text">RECALL PHASE</span>
+            </h3>
+            <p class="text-center text-gray-300 mb-6 text-lg">
+                Select the <span class="text-green-400 font-bold">GOOD</span> items you remember!
+            </p>
+            <div id="recallGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <!-- Recall items will be inserted here -->
+            </div>
+            <div class="text-center">
+                <button onclick="submitAnswer()"
+                    class="px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-lg rounded-xl shadow-lg glow-cyan transition-all transform hover:scale-105">
+                    SUBMIT ANSWER
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="resultsScreen" class="hidden">
+            <h3 class="text-2xl font-bold text-center mb-6 text-pink-400">
+                <span class="neon-text">LEVEL COMPLETE!</span>
+            </h3>
+            <div class="bg-purple-500/10 border border-purple-500/30 rounded-xl p-6 mb-6">
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <div class="text-center p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <div class="text-3xl font-bold text-green-400" id="correctCount">0</div>
+                        <div class="text-gray-400">Correct</div>
+                    </div>
+                    <div class="text-center p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                        <div class="text-3xl font-bold text-red-400" id="wrongCount">0</div>
+                        <div class="text-gray-400">Wrong</div>
+                    </div>
+                </div>
+                <div class="text-center p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg mb-4">
+                    <div class="text-4xl font-bold text-purple-400" id="levelScore">+0</div>
+                    <div class="text-gray-400">Level Score</div>
+                </div>
+                <div id="perfectBonus"
+                    class="hidden text-center p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <span class="text-yellow-400 font-bold">🎉 PERFECT! Streak Bonus: +<span
+                            id="streakBonus">0</span></span>
+                </div>
+            </div>
+            <div class="text-center">
+                <button onclick="nextLevel()"
+                    class="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-lg rounded-xl shadow-lg glow-purple transition-all transform hover:scale-105">
+                    NEXT LEVEL
+                </button>
+            </div>
+        </div>
+
+        <!-- Final Results -->
+        <div id="finalResults" class="hidden">
+            <h2
+                class="text-4xl font-bold text-center mb-6 neon-text text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                GAME COMPLETE!
+            </h2>
+            <div
+                class="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-2 border-purple-500/50 rounded-xl p-8 mb-6 glow-purple">
+                <div class="text-center mb-6">
+                    <div class="text-6xl mb-4" id="rankBadge">🏆</div>
+                    <div class="text-3xl font-bold text-purple-400 mb-2" id="rankName">Rank</div>
+                    <div class="text-xl text-gray-400 mb-4" id="rankTagline">Tagline</div>
+                    <div class="text-5xl font-bold neon-text text-cyan-400 mb-2" id="finalScore">0</div>
+                    <div class="text-gray-400">Final Score</div>
+                </div>
+            </div>
+            <div class="text-center">
+                <button onclick="location.reload()"
+                    class="px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-lg rounded-xl shadow-lg glow-cyan transition-all transform hover:scale-105">
+                    PLAY AGAIN
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentLevelData = null;
+    let selectedItems = new Set();
+    let timerInterval = null;
+
+    // Start game
+    async function startGame() {
+        try {
+            const response = await fetch('/api/start/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('welcomeScreen').classList.add('hidden');
+                document.getElementById('levelInfo').classList.remove('hidden');
+                loadLevel();
+            }
+        } catch (error) {
+            console.error('Error starting game:', error);
+        }
+    }
+
+    // Load current level
+    async function loadLevel() {
+        try {
+            const response = await fetch('/api/level/');
+            const data = await response.json();
+
+            if (data.success) {
+                currentLevelData = data;
+                document.getElementById('currentLevel').textContent = data.level;
+                showMemorizationPhase(data);
+            }
+        } catch (error) {
+            console.error('Error loading level:', error);
+        }
+    }
+
+    // Show memorization phase
+    function showMemorizationPhase(data) {
+        // Hide other phases
+        document.getElementById('recallPhase').classList.add('hidden');
+        document.getElementById('resultsScreen').classList.add('hidden');
+
+        // Show memorization phase
+        document.getElementById('memorizationPhase').classList.remove('hidden');
+        document.getElementById('timerDisplay').classList.remove('hidden');
+
+        // Display items
+        const grid = document.getElementById('itemsGrid');
+        grid.innerHTML = '';
+
+        data.items.forEach(item => {
+            const itemCard = document.createElement('div');
+            itemCard.className = `p-4 rounded-xl border-2 transition-all ${item.is_good
+                    ? 'bg-green-500/10 border-green-500/50 glow-cyan'
+                    : 'bg-red-500/10 border-red-500/50'
+                }`;
+            itemCard.innerHTML = `
+            <div class="text-3xl text-center mb-2">${item.symbol}</div>
+            <div class="text-center font-semibold text-gray-200">${item.name}</div>
+        `;
+            grid.appendChild(itemCard);
+        });
+
+        // Start timer
+        startTimer(data.display_time, () => {
+            loadRecallPhase();
+        });
+    }
+
+    // Load recall phase
+    async function loadRecallPhase() {
+        try {
+            const response = await fetch('/api/recall/');
+            const data = await response.json();
+
+            if (data.success) {
+                showRecallPhase(data);
+            }
+        } catch (error) {
+            console.error('Error loading recall phase:', error);
+        }
+    }
+
+    // Show recall phase
+    function showRecallPhase(data) {
+        // Hide memorization
+        document.getElementById('memorizationPhase').classList.add('hidden');
+
+        // Show recall
+        document.getElementById('recallPhase').classList.remove('hidden');
+        selectedItems.clear();
+
+        // Display items without symbols
+        const grid = document.getElementById('recallGrid');
+        grid.innerHTML = '';
+
+        data.items.forEach(item => {
+            const itemCard = document.createElement('div');
+            itemCard.className = 'p-4 rounded-xl border-2 border-gray-600 bg-gray-800/50 cursor-pointer transition-all hover:border-purple-500 hover:glow-purple';
+            itemCard.dataset.index = item.index;
+            itemCard.innerHTML = `
+            <div class="text-center font-semibold text-gray-200">${item.name}</div>
+        `;
+
+            itemCard.onclick = () => toggleItem(itemCard, item.index);
+            grid.appendChild(itemCard);
+        });
+
+        // Start typing timer
+        startTimer(currentLevelData.typing_time, () => {
+            submitAnswer();
+        });
+    }
+
+    // Toggle item selection
+    function toggleItem(card, index) {
+        if (selectedItems.has(index)) {
+            selectedItems.delete(index);
+            card.classList.remove('border-purple-500', 'bg-purple-500/20', 'glow-purple');
+            card.classList.add('border-gray-600', 'bg-gray-800/50');
+        } else {
+            selectedItems.add(index);
+            card.classList.remove('border-gray-600', 'bg-gray-800/50');
+            card.classList.add('border-purple-500', 'bg-purple-500/20', 'glow-purple');
+        }
+    }
+
+    // Submit answer
+    async function submitAnswer() {
+        stopTimer();
+
+        try {
+            const response = await fetch('/api/submit/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    selected: Array.from(selectedItems)
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                showResults(data);
+            }
+        } catch (error) {
+            console.error('Error submitting answer:', error);
+        }
+    }
+
+    // Show results
+    function showResults(data) {
+        // Hide recall phase
+        document.getElementById('recallPhase').classList.add('hidden');
+        document.getElementById('timerDisplay').classList.add('hidden');
+
+        // Show results
+        document.getElementById('resultsScreen').classList.remove('hidden');
+
+        // Update stats
+        document.getElementById('correctCount').textContent = data.correct_good;
+        document.getElementById('wrongCount').textContent = data.wrong_bad + data.forgotten_good;
+        document.getElementById('levelScore').textContent = '+' + data.level_score;
+        document.getElementById('totalScore').textContent = data.cumulative_score;
+        document.getElementById('streakCount').textContent = data.streak;
+
+        // Show perfect bonus if applicable
+        if (data.is_perfect && data.streak_bonus > 0) {
+            document.getElementById('perfectBonus').classList.remove('hidden');
+            document.getElementById('streakBonus').textContent = data.streak_bonus;
+        } else {
+            document.getElementById('perfectBonus').classList.add('hidden');
+        }
+    }
+
+    // Next level
+    async function nextLevel() {
+        try {
+            const response = await fetch('/api/next/');
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.game_complete) {
+                    showFinalResults();
+                } else {
+                    document.getElementById('resultsScreen').classList.add('hidden');
+                    loadLevel();
+                }
+            }
+        } catch (error) {
+            console.error('Error advancing level:', error);
+        }
+    }
+
+    // Show final results
+    async function showFinalResults() {
+        try {
+            const response = await fetch('/api/results/');
+            const data = await response.json();
+
+            if (data.success) {
+                // Hide other screens
+                document.getElementById('resultsScreen').classList.add('hidden');
+                document.getElementById('levelInfo').classList.add('hidden');
+
+                // Show final results
+                document.getElementById('finalResults').classList.remove('hidden');
+
+                // Update final stats
+                document.getElementById('rankBadge').textContent = data.rank_badge;
+                document.getElementById('rankName').textContent = data.rank_name;
+                document.getElementById('rankTagline').textContent = data.rank_tagline;
+                document.getElementById('finalScore').textContent = data.total_score;
+            }
+        } catch (error) {
+            console.error('Error loading final results:', error);
+        }
+    }
+
+    // Timer functions
+    function startTimer(seconds, callback) {
+        stopTimer();
+
+        let remaining = seconds;
+        const total = seconds;
+
+        updateTimerDisplay(remaining, total);
+
+        timerInterval = setInterval(() => {
+            remaining--;
+            updateTimerDisplay(remaining, total);
+
+            if (remaining <= 0) {
+                stopTimer();
+                if (callback) callback();
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function updateTimerDisplay(remaining, total) {
+        const timerValue = document.getElementById('timerValue');
+        const timerBar = document.getElementById('timerBar');
+
+        timerValue.textContent = remaining + 's';
+
+        const percentage = (remaining / total) * 100;
+        timerBar.style.width = percentage + '%';
+
+        // Color coding
+        if (percentage > 50) {
+            timerBar.className = 'h-full bg-gradient-to-r from-green-500 to-cyan-500 transition-all duration-1000 glow-cyan';
+            timerValue.className = 'text-3xl font-bold neon-text text-green-400';
+        } else if (percentage > 25) {
+            timerBar.className = 'h-full bg-gradient-to-r from-yellow-500 to-orange-500 transition-all duration-1000';
+            timerValue.className = 'text-3xl font-bold neon-text text-yellow-400';
+        } else {
+            timerBar.className = 'h-full bg-gradient-to-r from-red-500 to-pink-500 transition-all duration-1000 glow-pink';
+            timerValue.className = 'text-3xl font-bold neon-text text-red-400';
+        }
+    }
+
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

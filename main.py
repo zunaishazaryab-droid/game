@@ -164,7 +164,7 @@ class ForgetToWinGame:
         self.memorization_phase(level_num, good_items, bad_items, config["display_time"])
         
         # Recall phase
-        selected_items = self.recall_phase(good_items, bad_items)
+        selected_items = self.recall_phase(good_items, bad_items, level_num)
         
         # Calculate results
         result = self.calculate_level_result(
@@ -215,59 +215,236 @@ class ForgetToWinGame:
         console.print("\n[bold cyan]Time's up! Get ready to recall...[/bold cyan]", justify="center")
         time.sleep(1)
     
-    def recall_phase(self, good_items, bad_items):
+    def recall_phase(self, good_items, bad_items, level_num: int):
         """
-        Recall phase - user selects items they remember
+        Recall phase - user selects items they remember with dynamic typing timer
+        Uses prompt_toolkit Application with custom layout for live timer display
         
         Args:
             good_items (List[Item]): Good items (correct answers)
             bad_items (List[Item]): Bad items (should not select)
+            level_num (int): Current level number for timer configuration
         
         Returns:
             Set[Item]: Items selected by user
         """
+        import threading
+        from prompt_toolkit import Application
+        from prompt_toolkit.layout import Layout, HSplit, Window
+        from prompt_toolkit.layout.controls import FormattedTextControl
+        from prompt_toolkit.key_binding import KeyBindings
+        from prompt_toolkit.buffer import Buffer
+        from prompt_toolkit.layout.containers import WindowAlign
+        from prompt_toolkit.widgets import TextArea
+        from rich.panel import Panel
+        
         console.clear()
         
         # Shuffle items again (different order)
         all_items = ItemPool.shuffle_display_items(good_items, bad_items)
         recall_list = ItemDisplay.format_recall_list(all_items)
         
+        # Get typing time for this level
+        typing_time = GameConfig.TYPING_TIME.get(level_num, 30)
+        
+        # Display initial screen (items list)
         console.print("\n")
-        console.print("[bold yellow]RECALL PHASE[/bold yellow]", justify="center")
+        console.print(Panel(
+            "[bold yellow]RECALL PHASE[/bold yellow]",
+            border_style="yellow",
+            expand=False
+        ), justify="center")
         console.print("[dim]Select the numbers of the GOOD items you remember[/dim]", justify="center")
         console.print("\n")
         console.print(recall_list)
         console.print("\n")
+        console.print(f"[bold cyan]⏱ You have {typing_time} seconds to answer![/bold cyan]", justify="center")
+        console.print("\n")
         
-        # Get user input
-        while True:
-            try:
-                answer = Prompt.ask(
-                    "[bold cyan]Enter item numbers (comma-separated, e.g., 1,3,5)[/bold cyan]",
-                    default=""
-                )
-                
-                if not answer.strip():
-                    # User selected nothing
+        # Shared state
+        time_remaining = [typing_time]
+        timer_active = [True]
+        user_answer = [""]
+        
+        def countdown_timer():
+            """Background thread to countdown timer"""
+            while time_remaining[0] > 0 and timer_active[0]:
+                time.sleep(1)
+                time_remaining[0] -= 1
+            timer_active[0] = False
+        
+        def get_timer_text():
+            """Generate timer display text with color coding"""
+            remaining = time_remaining[0]
+            
+            # Color coding based on time remaining
+            if remaining > typing_time * 0.5:
+                icon = "🟢"
+                bar = "█" * 20
+            elif remaining > typing_time * 0.25:
+                icon = "🟡"
+                filled = int((remaining / typing_time) * 20)
+                bar = "█" * filled + "░" * (20 - filled)
+            else:
+                icon = "🔴"
+                filled = int((remaining / typing_time) * 20)
+                bar = "█" * filled + "░" * (20 - filled)
+            
+            return f"{icon} Time: {remaining}s [{bar}]"
+        
+        # Create prompt_toolkit components
+        timer_control = FormattedTextControl(
+            text=get_timer_text,
+            focusable=False
+        )
+        
+        timer_window = Window(
+            content=timer_control,
+            height=1,
+            align=WindowAlign.CENTER
+        )
+        
+        # Create text input area
+        input_field = TextArea(
+            prompt="➤ ",
+            multiline=False,
+            focusable=True,
+            focus_on_click=True
+        )
+        
+        # Create instruction window
+        instruction_text = "Enter item numbers (comma-separated, e.g., 1,3,5) - Press Enter to submit"
+        instruction_window = Window(
+            content=FormattedTextControl(text=instruction_text),
+            height=1,
+            align=WindowAlign.CENTER
+        )
+        
+        # Create layout with timer above input
+        root_container = HSplit([
+            Window(height=1),  # Spacer
+            timer_window,
+            Window(height=1),  # Spacer
+            instruction_window,
+            input_field,
+        ])
+        
+        layout = Layout(root_container)
+        
+        # Key bindings
+        kb = KeyBindings()
+        
+        @kb.add('enter')
+        def _(event):
+            """Handle Enter key - submit answer"""
+            user_answer[0] = input_field.text
+            timer_active[0] = False
+            event.app.exit()
+        
+        @kb.add('c-c')
+        def _(event):
+            """Handle Ctrl+C - exit"""
+            timer_active[0] = False
+            event.app.exit()
+        
+        # Create application
+        app = Application(
+            layout=layout,
+            key_bindings=kb,
+            full_screen=False,
+            mouse_support=False
+        )
+        
+        # Start countdown timer
+        timer_thread = threading.Thread(target=countdown_timer, daemon=True)
+        timer_thread.start()
+        
+        # Auto-exit when timer expires
+        def check_timeout():
+            while timer_active[0] and time_remaining[0] > 0:
+                time.sleep(0.1)
+                app.invalidate()  # Force redraw to update timer
+            if time_remaining[0] <= 0:
+                timer_active[0] = False
+                app.exit()
+        
+        timeout_thread = threading.Thread(target=check_timeout, daemon=True)
+        timeout_thread.start()
+        
+        # Run the application
+        try:
+            app.run()
+        except KeyboardInterrupt:
+            timer_active[0] = False
+        
+        # Process result
+        answer = user_answer[0]
+        
+        console.print()
+        
+        # Show timeout or success message
+        if time_remaining[0] <= 0 and not answer:
+            console.print(Panel(
+                "[bold red]⏰ TIME'S UP! No answer provided.[/bold red]",
+                border_style="red",
+                expand=False
+            ), justify="center")
+            time.sleep(1.5)
+            return set()
+        elif time_remaining[0] <= 0:
+            console.print(Panel(
+                "[bold red]⏰ TIME'S UP! Evaluating your partial answer...[/bold red]",
+                border_style="red",
+                expand=False
+            ), justify="center")
+            time.sleep(1.5)
+        else:
+            console.print("[green]✓ Answer submitted![/green]", justify="center")
+            time.sleep(0.5)
+        
+        # Parse and validate input
+        try:
+            if not answer.strip():
+                console.print("[yellow]No items selected.[/yellow]")
+                time.sleep(1)
+                return set()
+            
+            # Parse input
+            selected_indices = [int(x.strip()) - 1 for x in answer.split(',')]
+            
+            # Validate indices
+            if any(i < 0 or i >= len(all_items) for i in selected_indices):
+                console.print("[bold yellow]Warning: Some invalid item numbers detected. Using valid entries only...[/bold yellow]")
+                # Filter out invalid indices
+                selected_indices = [i for i in selected_indices if 0 <= i < len(all_items)]
+                if not selected_indices:
+                    time.sleep(1)
                     return set()
-                
-                # Parse input
-                selected_indices = [int(x.strip()) - 1 for x in answer.split(',')]
-                
-                # Validate indices
-                if any(i < 0 or i >= len(all_items) for i in selected_indices):
-                    console.print("[bold red]Invalid item numbers! Please try again.[/bold red]")
-                    continue
-                
-                # Map to items
-                selected_items = {all_items[i] for i in selected_indices}
-                return selected_items
-                
-            except ValueError:
-                console.print("[bold red]Invalid format! Use comma-separated numbers (e.g., 1,3,5)[/bold red]")
-            except KeyboardInterrupt:
-                console.print("\n[bold red]Game interrupted![/bold red]")
-                exit(0)
+            
+            # Map to items
+            selected_items = {all_items[i] for i in selected_indices}
+            return selected_items
+            
+        except ValueError:
+            console.print("[bold red]Invalid format detected! Attempting to parse valid numbers...[/bold red]")
+            # Try to extract valid numbers
+            import re
+            numbers = re.findall(r'\d+', answer)
+            if numbers:
+                try:
+                    selected_indices = [int(n) - 1 for n in numbers]
+                    selected_indices = [i for i in selected_indices if 0 <= i < len(all_items)]
+                    if selected_indices:
+                        selected_items = {all_items[i] for i in selected_indices}
+                        time.sleep(1)
+                        return selected_items
+                except:
+                    pass
+            time.sleep(1)
+            return set()
+        except KeyboardInterrupt:
+            console.print("\n[bold red]Game interrupted![/bold red]")
+            exit(0)
     
     def calculate_level_result(
         self,
